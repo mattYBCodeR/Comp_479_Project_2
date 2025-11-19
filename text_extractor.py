@@ -4,48 +4,40 @@ import nltk
 from nltk.tokenize import word_tokenize
 
 nltk.download('punkt_tab')
-def extracted_pdf(pdf_url) -> str:
+def extracted_pdf(pdf_url) -> list:
     """Check if a PDF is extractable using PyMuPDF."""
 
-    doc_text_by_pages = []
-    
     try: 
-        response = requests.get(pdf_url)
-        content = response.content
-        doc = pymupdf.open(stream=content)
+        # response = requests.get(pdf_url)
+        # content = response.content
+        doc = pymupdf.open(stream=requests.get(pdf_url).content)
+        pdf_text = ""
 
-        for i, page in enumerate(doc, start=1):
-            text = page.get_text()
+        #  KEEP IN MIND OF ' ' --> TRUE
+        for page in doc:
+            pdf_text = pdf_text + ' ' + page.get_text()
 
-            # is this wrong??? For exampple if edxtract text from page 1 but page 2 is not extractable so I just move on. Is this a bad approach?
-            # return early if there is no extractable text
-            if text == "":
-                print(f"Page {i} is not extractable.")
-                return False
-            
-            print(f"Page {i} text length: {len(text)}")
-            doc_text_by_pages.append(text)
-            
-        # Remove whitespaces from the extracted text.
-        doc_text_by_pages = [text.strip() for text in doc_text_by_pages]
-        full_text = ' '.join(doc_text_by_pages)
-        print(len(full_text))
+        # return early if there is no extractable text
+        if not pdf_text.strip():
+            print(f"PDF at {pdf_url} is not extractable.")
+            return False
+        
+        unfiltered_tokens = word_tokenize(pdf_text)
 
-        unfiltered_tokens = word_tokenize(full_text)
+        # doing some basic compression here by removing non-alpha tokens and lowercasing
+        # only adding in tokens that are longer than 2 characters to reduce index size of redundant tokens
+        compressed_tokens = [token.lower() for token in unfiltered_tokens if token.isalpha() and len(token) > 2]
 
         #  Doing some compression here to save time in the future when building the inverted index
-        tokens_with_duplicates = [token.lower() for token in unfiltered_tokens if token.isalpha()]
-        print(f"Number of tokens: {len(tokens_with_duplicates)}\n {tokens_with_duplicates[:100]}")
+        print(f"Number of tokens: {len(compressed_tokens)}\n {compressed_tokens[:30]}")
 
 
         # SHOULD WE SORT AT ALL????
         # tokens = sorted(list(set(tokens_with_duplicates)))
 
-        tokens = list(set(tokens_with_duplicates))
-        print(f"Number of tokens: {len(tokens)}\n {tokens[:100]}")
-
-
-        return tokens
+        terms = list(set(compressed_tokens))
+        print(f"Number of tokens: {len(terms)}\n {terms[:10]}")
+        return terms
     
     except requests.exceptions.RequestException as e:
         print(f"Error fetching PDF from {pdf_url}: {e}")
