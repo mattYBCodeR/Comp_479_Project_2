@@ -1,8 +1,8 @@
 from pathlib import Path
 import scrapy
 from scrapy.exceptions import CloseSpider
-from inverted_index_constructor import inverted_index_constructor
-from text_extractor import extracted_pdf
+from src.inverted_index_constructor import inverted_index_constructor
+from src.text_extractor import extracted_pdf
 import json
 
 class SpectrumSpider(scrapy.Spider):
@@ -14,14 +14,7 @@ class SpectrumSpider(scrapy.Spider):
     upper_bound = None
     inverted_index = {}
     pdf_docs = {}
-
-
-    # def __init__(self, upper_bound = None, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     self.upper_bound = int(upper_bound) if upper_bound is not None else None
-        # self.file = open('pdf_links.txt', 'a') 
-        #  ------------- ADDING IN -----------------------
-        
+     
 #  start by getting the browse link for browsing by documnt type
 # then follow the links
     def parse(self, response):
@@ -82,27 +75,15 @@ class SpectrumSpider(scrapy.Spider):
         #  get the doc id for when we need to write index into JSON file
 
         pdf_id = response.url.split('/')[-2]
-
         pdf_link = response.css('.ep_document_link ::attr(href)').get()
-        # restricted_link = response.css('.table .ep_form_action_button')
-
+        
         if pdf_link:
             if self.upper_bound is None or self.craweled_pdf_count < self.upper_bound:
-                tokens = extracted_pdf(pdf_link)
-                if tokens:
+                terms = extracted_pdf(pdf_link)
+                if terms:
 
-                        #  BCS WE NEED TO DO TF-IDF LATER, SHOULD I ADD IN FREQUENCY COUNT HERE?
-                        # OR SHOULD I JUST DO IT WHEN BUILDING THE INVERTED INDEX LATER?
-                        # SHOULD I JUST ADD in duplicates tokens HERE FOR TF-IDF???
-
-                    self.inverted_index = inverted_index_constructor(tokens, pdf_id, self.inverted_index)  
-                    # for token in tokens:
-                    #     if token in self.inverted_index:
-                    #         if pdf_id not in self.inverted_index[token]:
-                    #             self.inverted_index[token].append(pdf_id)
-                    #     else:
-                    #         self.inverted_index[token] = [pdf_id]
-                         
+                    self.inverted_index = inverted_index_constructor(terms, pdf_id, self.inverted_index)  
+                   
                     self.pdf_docs[pdf_id] = pdf_link
                     self.craweled_pdf_count += 1
                     print(f"Crawled PDF count: {self.craweled_pdf_count}\n")

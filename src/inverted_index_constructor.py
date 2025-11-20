@@ -1,13 +1,10 @@
 import json 
 
-def inverted_index_constructor(tokens: list, pdf_id: str, inverted_index: dict) -> dict:
+def inverted_index_constructor(terms: dict, pdf_id: str, inverted_index: dict) -> dict:
     """Constructs an inverted index from the given tokens and pdf_id."""
-    for token in tokens:
-        if token in inverted_index:
-            if pdf_id not in inverted_index[token]:
-                inverted_index[token].append(pdf_id)
-        else:
-            inverted_index[token] = [pdf_id]
+    for term, freq in terms.items():
+        inverted_index.setdefault(term,{}) [pdf_id] = freq  # Store frequency of term as value to pdf_id key
+
     return inverted_index
 
 def MY_COLLECTION_inverted_index_constructor(queried_doc_ids: set) -> dict:
@@ -15,15 +12,15 @@ def MY_COLLECTION_inverted_index_constructor(queried_doc_ids: set) -> dict:
         Will be called in Main
     """
     MY_COLLECTION_inverted_index = {}
+
     with open('index.json', 'r') as file:
         original_inverted_index = json.load(file)
 
     for term, postings in original_inverted_index.items():
-        # print(term, token)
-        collection_postings = [pdf_id for pdf_id in postings if pdf_id in queried_doc_ids]   
-
+        collection_postings = postings.keys() & queried_doc_ids 
+   
         if collection_postings:
-            MY_COLLECTION_inverted_index[term] = collection_postings 
+            MY_COLLECTION_inverted_index[term] = {pdf_id: postings[pdf_id] for pdf_id in collection_postings} 
         
     with open('MY_COLLECTION_index.json', 'w') as file:
         json.dump(MY_COLLECTION_inverted_index, file, indent=4)

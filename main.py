@@ -1,9 +1,8 @@
 
 from SpectrumScraper.SpectrumScraper.spiders.spectrum_spider import SpectrumSpider
 from scrapy.crawler import CrawlerProcess
-from query_processor import retrieve_documents_on_query
-from inverted_index_constructor import MY_COLLECTION_inverted_index_constructor
-import json
+from src.query_processor import retrieve_documents_on_query
+from src.inverted_index_constructor import MY_COLLECTION_inverted_index_constructor
 import time
 
 def main():
@@ -11,7 +10,7 @@ def main():
     start_time = time.time()
     
     process = CrawlerProcess() 
-    process.crawl(SpectrumSpider, upper_bound=10)  # Set upper_bound as needed
+    process.crawl(SpectrumSpider, upper_bound=100)  # Set upper_bound as needed
     process.start()
     
     #  Designing queries to collect spectrum documents on sustainablity and waste
