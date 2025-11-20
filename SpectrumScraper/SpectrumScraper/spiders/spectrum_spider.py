@@ -1,6 +1,7 @@
 from pathlib import Path
 import scrapy
 from scrapy.exceptions import CloseSpider
+from inverted_index_constructor import inverted_index_constructor
 from text_extractor import extracted_pdf
 import json
 
@@ -93,19 +94,16 @@ class SpectrumSpider(scrapy.Spider):
                         #  BCS WE NEED TO DO TF-IDF LATER, SHOULD I ADD IN FREQUENCY COUNT HERE?
                         # OR SHOULD I JUST DO IT WHEN BUILDING THE INVERTED INDEX LATER?
                         # SHOULD I JUST ADD in duplicates tokens HERE FOR TF-IDF???
-                        
-                    for token in tokens:
-                        if token in self.inverted_index:
-                            if pdf_id not in self.inverted_index[token]:
-                                self.inverted_index[token].append(pdf_id)
-                        else:
-                            self.inverted_index[token] = [pdf_id]
+
+                    self.inverted_index = inverted_index_constructor(tokens, pdf_id, self.inverted_index)  
+                    # for token in tokens:
+                    #     if token in self.inverted_index:
+                    #         if pdf_id not in self.inverted_index[token]:
+                    #             self.inverted_index[token].append(pdf_id)
+                    #     else:
+                    #         self.inverted_index[token] = [pdf_id]
                          
                     self.pdf_docs[pdf_id] = pdf_link
-                    # self.file.write(str(pdf_link) + '\n')
-                    # self.file.flush()
-    
-                    # yield {'crawled_pdf_count': self.craweled_pdf_count}
                     self.craweled_pdf_count += 1
                     print(f"Crawled PDF count: {self.craweled_pdf_count}\n")
             else: 

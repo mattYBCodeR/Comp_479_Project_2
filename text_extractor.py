@@ -27,6 +27,7 @@ def extracted_pdf(pdf_url: str) -> list:
                 print(f"PDF at {pdf_url} is not extractable.")
                 return False
         
+            # KEEP IN MIND TOKENIZING CREATES DUPLICATES
             unfiltered_tokens = word_tokenize(pdf_text)
 
         # doing some basic compression here by removing non-alpha tokens and lowercasing
