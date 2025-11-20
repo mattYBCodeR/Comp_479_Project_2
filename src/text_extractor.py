@@ -2,6 +2,7 @@ import pymupdf
 import requests
 import nltk
 from nltk.tokenize import word_tokenize
+from itertools import islice
 
 nltk.download('punkt_tab')
 
@@ -9,7 +10,7 @@ nltk.download('punkt_tab')
 # Speeds up process of fetching PDFs substantially
 session = requests.Session()
 
-def extracted_pdf(pdf_url: str) -> list:
+def extracted_pdf(pdf_url: str) -> dict | bool:
     """Check if a PDF is extractable using PyMuPDF."""
     # using session instead of request for efficeincy
     try: 
@@ -47,9 +48,14 @@ def extracted_pdf(pdf_url: str) -> list:
         # SHOULD WE SORT AT ALL????
         # tokens = sorted(list(set(tokens_with_duplicates)))
 
-            terms = list(set(compressed_tokens))
-            print(f"Number of tokens: {len(terms)}\n {terms[:10]}")
-            return terms
+            # terms = list(set(compressed_tokens))
+            term_frequencies = {}
+
+            for term in compressed_tokens:
+                term_frequencies[term] = term_frequencies.get(term, 0) + 1
+
+            print(f"Number of tokens: {len(term_frequencies)}\n {dict(islice(term_frequencies.items(), 20))}")
+            return term_frequencies
     
     except requests.exceptions.RequestException as e:
         print(f"Error fetching PDF from {pdf_url}: {e}")
