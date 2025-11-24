@@ -18,16 +18,18 @@ class SpectrumSpider(scrapy.Spider):
 #  start by getting the browse link for browsing by documnt type
 # then follow the links
     def parse(self, response):
+        '''Start on the home page'''
+
         # get the document type link for theses
         document_type_link = response.css('#main_menu_browse li:nth-child(4) a::attr(href)').get()
         yield response.follow(document_type_link, callback = self.thesis_type_links) # add callback to follow the link to do an action
         
         
 
-    '''Getting Master and PhD thesis links'''
     # get the thesis link from the document type page
     # bcs of bound, only getting master papers
     def thesis_type_links(self, response):
+        '''Getting Master and PhD thesis links'''
 
         # GETTING THE THESIS LINKS FOR MASTER AND PHD THESES --> GIVES A LIST OF THE LINKS
         thesis_links = response.css('ul:nth-child(9) ul a::attr(href)').extract()
@@ -36,11 +38,11 @@ class SpectrumSpider(scrapy.Spider):
         for thesis_type in thesis_links:
             yield response.follow(thesis_type, callback=self.parse_years)
         
-    '''For the master and phd thesis year page, get all the year links
-        and follow each link to get the individual thesis pdf links
-        We will trim our year links to only reteive the most recent years 
-        since many older pdfs are not extractable since they are scanned'''
     def parse_years(self, response):
+        '''For the master and phd thesis year page, get all the year links
+            and follow each link to get the individual thesis pdf links
+            We will trim our year links to only retreive the most recent years 
+            since many older pdfs are not extractable since they are scanned'''
 
         #  collect a list of all the year links. We will then follow each link to get the thesis links
         # NOTE: we trimmed the list to take more recent years since many older pdfs are not extractable since they are scanned
@@ -52,8 +54,13 @@ class SpectrumSpider(scrapy.Spider):
 
         
     def parse_thesis_links(self, response):
+        '''
+        Collect all the thesis links for the given year 
+        GETS RID OF ORCHID LINKS that some docs have
+        '''
         theses_docs = response.css('p')
-        # pop out the last item in the list since it returns an empty doc value
+
+        # pop out the last item in the list since it returns an empty doc value []
         theses_docs.pop()
         #  to avoid getting orchid links do list[-1]
         for doc in theses_docs:
@@ -79,10 +86,14 @@ class SpectrumSpider(scrapy.Spider):
         
         if pdf_link:
             if self.upper_bound is None or self.craweled_pdf_count < self.upper_bound:
-                terms = extracted_pdf(pdf_link)
-                if terms:
 
-                    self.inverted_index = inverted_index_constructor(terms, pdf_id, self.inverted_index)  
+                # Returns terms with log weighted frequencies dictionary --> {'term': log_weighted_tf}
+                terms_and_term_frequency_weight = extracted_pdf(pdf_link)
+                if terms_and_term_frequency_weight:
+                    
+                    # place the terms and their term frequency weights into the inverted index with their pdf id as key
+                    # inverted_index = {'term': {'pdf_id': log_weighted_tf}} 
+                    self.inverted_index = inverted_index_constructor(terms_and_term_frequency_weight, pdf_id, self.inverted_index)  
                    
                     self.pdf_docs[pdf_id] = pdf_link
                     self.craweled_pdf_count += 1
@@ -90,13 +101,17 @@ class SpectrumSpider(scrapy.Spider):
             else: 
                 raise CloseSpider('Reached upper bound of PDFs to crawl') 
              
-    '''When the spider is closed, write the inverted index to a JSON file'''
     def closed(self, reason):
+        '''
+        When the spider is closed, write the inverted index to a JSON file
+        NOTE: The index has weighted term frequencies, still need to compute TF-IDF weights 
+        Need to edit the MY COLLECECTION INDEX in the future to modify the term_freq weights to TF-IDF
+    '''
        
+
         with open('pdf_links.json', 'w') as f:
            json.dump(self.pdf_docs, f, indent=4)
-        # json_inverted_index = json.dumps(self.inverted_index, indent=4)
-       
+
         with open('index.json', 'w') as file:
             json.dump(self.inverted_index, file, indent=4)
 
