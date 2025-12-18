@@ -72,8 +72,9 @@ class SpectrumSpider(scrapy.Spider):
     '''Parse individial thesis pdfs 
     1) this function will respect the upper bound if provided
     2) Once the upper bound is reached, an exception will be raised to stop the spider
-    3) Will call the pdf_to_download function to check if the pdf is extractable. If so, write the link to the file
-    4) While writing the pdfs into the file, need to flush the file buffer to ensure data is written immediately
+    3) Will call the extracted_pdf function to check if the pdf is extractable. If so, write the link to the file (for testing purposes)
+       This function will return a hash map of terms and their log weighted term frequencies for the given pdf
+    4) After we have collected the hash map, call the inverted_index_constructor to place the terms into the inverted index with their pdf id as key
     NOTE: Only writing into the file to make sure we are retreiving the correcet pdfs
     '''
     def parse_pdf(self, response):
