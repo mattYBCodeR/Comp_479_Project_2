@@ -3,6 +3,18 @@ import json
 # Retrieve pdf ids (postings list) for the queries "waste" and "sustainability" from index.json (inverted index)
 # update the query_set with the retrieved pdf ids and return it --> avoids duplicates
 def retrieve_documents_on_query(query: str, query_set: set) -> set:
+    """
+    Retrieves PDF IDs containing the query term from the inverted index.
+    
+    Accumulates PDF IDs across query calls.
+    
+    Args:
+        query: Search term (must match waste and sustainability terms in index.json)
+        query_set: Existing PDF IDs to add to fi there are any 
+    
+    Returns:
+        Updated set of PDF IDs (no duplicates)
+    """
     with open('index.json', 'r') as file:
         inverted_index = json.load(file)
         if query in inverted_index:
@@ -15,6 +27,3 @@ def retrieve_documents_on_query(query: str, query_set: set) -> set:
             print(f"\nQuery '{query}' not found in the inverted index.")
             
     return query_set
-
-# def get_query_pdfs(retrieved_documents):
-#     pass
