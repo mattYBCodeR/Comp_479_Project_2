@@ -122,6 +122,133 @@ Project2/
 └── pdf_links.json                  # PDF URL mappings
 ```
 
+## Pipeline Explanation
+
+### High-Level Overview
+
+This project implements a complete document clustering pipeline that transforms raw PDFs into numerical representations and groups similar documents together. The process involves data collection, text processing, statistical weighting, and machine learning-based clustering.
+
+### Pipeline Stages
+
+#### 1. **Web Crawling & PDF Collection**
+The pipeline begins by using Scrapy to crawl the Concordia Spectrum thesis repository. The spider navigates through thesis types (Master/PhD), years, and individual thesis listings to locate PDF links. Documents are downloaded and processed in real-time during the crawl rather than batching them afterward. This streaming approach keeps memory usage manageable for large collections.
+
+#### 2. **Text Extraction & Tokenization**
+Once a PDF is downloaded, PyMuPDF extracts all text from every page into a continuous string. This raw text is then tokenized using NLTK's `word_tokenize()` function, which breaks it into individual words and punctuation. The tokens are filtered to retain only:
+- Lowercase alphabetic words
+- Length greater than 2 characters
+- This filtering removes common punctuation and single-character tokens that add noise
+
+The result is a clean list of terms representing the document's meaningful content.
+
+#### 3. **TF (Term Frequency) Calculation**
+For each document, term frequencies are calculated using logarithmic weighting to prevent high-frequency terms from dominating:
+
+**TF = 1 + log₁₀(count)**
+
+Examples:
+- A term appearing 1 time: TF = 1.0
+- A term appearing 10 times: TF = 2.0
+- A term appearing 100 times: TF = 3.0
+
+This logarithmic scaling reflects that the importance of a term doesn't increase proportionally with its frequency. All TF-weighted terms are accumulated in a global **inverted index**, where each term maps to the documents containing it and their respective TF scores.
+
+#### 4. **Collection Filtering (Query-Based)**
+Instead of clustering all crawled documents, the project filters the collection by searching for documents containing domain-specific terms: "sustainability" or "waste". This query-based filtering creates **MY_COLLECTION**—a focused subset of documents most relevant to the research domain.
+
+#### 5. **TF-IDF Transformation**
+For documents in MY_COLLECTION, raw TF weights are transformed into TF-IDF weights:
+
+**TF-IDF = TF × IDF**
+
+where **IDF = log₁₀(N / document_frequency)**
+
+- **N** = total documents in MY_COLLECTION
+- **document_frequency** = number of documents containing that term
+
+IDF serves as a penalization factor:
+- **Common terms** (appearing in many documents): Lower IDF, reduced TF-IDF weight
+- **Rare/distinctive terms** (appearing in few documents): Higher IDF, boosted TF-IDF weight
+
+This transformation makes the weights more meaningful for clustering by downweighting generic vocabulary and emphasizing domain-specific terminology.
+
+#### 6. **Stopword Removal**
+The 150 most frequently occurring terms (by document frequency) are identified and removed as stopwords. These are typically generic words that appear across many documents without adding discriminative value. Examples include common English words that don't contribute to cluster differentiation. Removing them reduces dimensionality and noise in downstream analysis.
+
+#### 7. **Vectorization**
+The filtered inverted index is converted into a numerical **document-term matrix**:
+- **Rows** = individual documents
+- **Columns** = unique terms (after stopword removal)
+- **Cell values** = TF-IDF weights
+
+For example, a collection of 1,000 documents with 5,000 unique terms creates a 1000×5000 matrix. Each row represents one document's "profile" across all terms.
+
+The matrix is then **L2-normalized**, scaling each document vector so its Euclidean length equals 1:
+
+**normalized_row = row / √(sum of row²)**
+
+This normalization ensures that clustering distance metrics treat all documents fairly, preventing longer documents from dominating distance calculations.
+
+#### 8. **K-Means Clustering**
+K-Means partitions the normalized document-term matrix into **k clusters** (k = 2, 10, or 20). The algorithm works as follows:
+
+1. **Initialization**: k cluster centers are selected using "k-means++" intelligent seeding, which spreads initial centers apart to improve convergence
+2. **Assignment**: Each document is assigned to its nearest cluster center (using Euclidean distance)
+3. **Update**: Cluster centers are recalculated as the centroid (mean) of all assigned documents
+4. **Iteration**: Steps 2-3 repeat until convergence (centers stabilize)
+
+Documents end up in the same cluster when they have similar term profiles, meaning they share similar distributions of important terms.
+
+#### 9. **Dimensionality Reduction (LSA) for Visualization**
+The high-dimensional document vectors (potentially thousands of dimensions, one per term) are reduced to 2D using **Truncated Singular Value Decomposition (TruncatedSVD)**, which implements Latent Semantic Analysis (LSA):
+
+- Preserves the most important variance in the data
+- Captures semantic relationships between terms and documents
+- Enables visual scatter plot representation while maintaining clustering structure
+
+This 2D projection allows human interpretation of how clusters are distributed in semantic space.
+
+#### 10. **Result Output**
+For each k value (2, 10, 20), the pipeline generates:
+
+1. **Scatter plot visualization**: Documents plotted in 2D space, colored by cluster assignment, with cluster centroids marked
+2. **Text report** (`clustering_results_k{k}.txt`): 
+   - Top 50 most representative terms per cluster, ranked by their weight in the cluster centroid
+   - Provides interpretability by showing what distinguishes each cluster
+   - Document count statistics per cluster
+
+---
+
+## Key Concepts Summary
+
+| Concept | Purpose | Formula/Method |
+|---------|---------|-----------------|
+| **Tokenization** | Convert raw text into individual analyzable terms | NLTK word_tokenize() + filtering |
+| **Term Frequency (TF)** | Weight terms by their frequency within a document | 1 + log₁₀(count) |
+| **Inverse Document Frequency (IDF)** | Weight terms by their rarity across the collection | log₁₀(N / df) |
+| **TF-IDF** | Combined weight reflecting both local importance and global distinctiveness | TF × IDF |
+| **L2 Normalization** | Scale all document vectors to equal magnitude for fair distance comparisons | row / √(sum of row²) |
+| **K-Means Clustering** | Partition documents into k groups based on similarity | Iterative centroid-based partitioning |
+| **LSA (Latent Semantic Analysis)** | Compress high-dimensional data to 2D for visualization | TruncatedSVD preserving variance |
+| **Inverted Index** | Efficient data structure mapping terms to documents containing them | {term: {doc_id: weight}} |
+
+---
+
+## Workflow Summary
+
+1. **Crawl** PDFs from Spectrum repository (Scrapy)
+2. **Extract** text and tokenize (PyMuPDF + NLTK)
+3. **Weight** terms with TF (logarithmic scaling)
+4. **Filter** documents by domain queries (sustainability, waste)
+5. **Transform** to TF-IDF weights (raw frequencies → normalized importance)
+6. **Clean** by removing stopwords (top 150 terms)
+7. **Vectorize** into document-term matrix with L2 normalization
+8. **Cluster** using K-Means (k=2, 10, 20)
+9. **Visualize** with LSA dimensionality reduction (2D scatter plots)
+10. **Report** top 50 terms per cluster for interpretability
+
+The pipeline ultimately transforms unstructured PDF text into mathematically-comparable document vectors, then discovers natural groupings based on shared terminology and semantic relationships.
+
 ## Execution Sequence
 
 ### 1. Where Code is Ran (`main.py`)
